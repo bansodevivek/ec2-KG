@@ -12,7 +12,11 @@ USER="ubuntu"
 
 echo "==> Installing system dependencies..."
 apt-get update -q
-apt-get install -y python3.11 python3.11-venv python3-pip nginx nodejs npm git
+apt-get install -y python3.11 python3.11-venv python3-pip nginx nodejs npm git redis-server
+
+echo "==> Starting Redis..."
+systemctl enable redis-server
+systemctl start redis-server
 
 echo "==> Cloning / updating repository..."
 if [ -d "$APP_DIR" ]; then
