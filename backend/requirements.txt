@@ -1,0 +1,33 @@
+# Core Django
+Django>=4.2,<5.0
+asgiref>=3.7
+
+# Django REST Framework
+djangorestframework>=3.14
+djangorestframework-simplejwt>=5.3
+
+# CORS
+django-cors-headers>=4.3
+
+# WebSockets / Channels
+channels>=4.0
+channels-redis>=4.1
+daphne>=4.0
+
+# Celery (async task queue)
+celery>=5.3
+celery[redis]>=5.3
+
+# Redis client & Django cache backend
+redis>=5.0
+django-redis>=5.4
+
+# MQTT
+paho-mqtt>=1.6
+
+# TimescaleDB / PostgreSQL
+django-timescaledb>=0.2
+psycopg2-binary>=2.9
+
+# JWT decoding (used directly in middleware)
+PyJWT>=2.8
