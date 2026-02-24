@@ -1,0 +1,10 @@
+services:
+  - type: static
+    name: connected-auto-dashboard
+    env: static
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    publishDir: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
