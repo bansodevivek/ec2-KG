@@ -1,0 +1,22 @@
+[Unit]
+Description=Connected Auto Dashboard - Django ASGI (uvicorn)
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/ec2-KG/backend
+EnvironmentFile=/home/ubuntu/ec2-KG/backend/.env
+ExecStart=/home/ubuntu/ec2-KG/backend/.venv/bin/python -m uvicorn DjangoProject.asgi:application \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 4 \
+    --log-level info
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kg-backend
+
+[Install]
+WantedBy=multi-user.target
