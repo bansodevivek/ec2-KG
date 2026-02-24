@@ -2,17 +2,18 @@
 
 from pathlib import Path
 from datetime import timedelta
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!zf)26%m2@&s46ui=(wwqo$%!re(-w3e(3j3&5736u5xfuoih2'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
@@ -101,7 +102,7 @@ ROOT_URLCONF = 'DjangoProject.urls'
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1", # Use DB 1 for Cache to keep DB 0 clean for Celery
+        "LOCATION": config('REDIS_CACHE_URL', default='redis://127.0.0.1:6379/1'),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
@@ -112,7 +113,7 @@ CACHES = {
 # CELERY CONFIGURATION (OPTIMIZED FOR HIGH THROUGHPUT)
 # ============================================
 
-REDIS_URL = 'redis://127.0.0.1:6379/0'
+REDIS_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
@@ -181,11 +182,11 @@ CELERY_BEAT_SCHEDULE = {
 DATABASES = {
     'default': {
         'ENGINE': 'timescale.db.backends.postgresql',
-        'NAME': 'ev_telematics',
-        'USER': 'postgres',
-        'PASSWORD': 'Password',
-        'HOST': '203.16.202.48',
-        'PORT': '5432',
+        'NAME': config('DB_NAME', default='ev_telematics'),
+        'USER': config('DB_USER', default='postgres'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST', default='localhost'),
+        'PORT': config('DB_PORT', default='5432'),
         
         # Connection Pooling (critical for high-frequency writes)
         'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes
@@ -207,10 +208,10 @@ DATABASES = {
 # ============================================
 # MQTT CONFIGURATION
 # ============================================
-MQTT_BROKER = 'test.mosquitto.org'  # TODO: Replace with your own broker!
-MQTT_PORT = 1883
-MQTT_USERNAME = None
-MQTT_PASSWORD = None
+MQTT_BROKER = config('MQTT_BROKER', default='test.mosquitto.org')
+MQTT_PORT = config('MQTT_PORT', default=1883, cast=int)
+MQTT_USERNAME = config('MQTT_USERNAME', default=None)
+MQTT_PASSWORD = config('MQTT_PASSWORD', default=None)
 MQTT_KEEPALIVE = 60  # 60 second keepalive
 MQTT_QOS_CONTROL = 1  # QoS 1 for control commands (reliable)
 MQTT_QOS_TELEMETRY = 0  # QoS 0 for telemetry (fast, lossy OK)
@@ -366,11 +367,14 @@ WSGI_APPLICATION = 'DjangoProject.wsgi.application'
 ASGI_APPLICATION = 'DjangoProject.asgi.application'
 
 
+from urllib.parse import urlparse as _urlparse
+_redis = _urlparse(REDIS_URL)
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            "hosts": [(_redis.hostname, _redis.port or 6379)],
             "capacity": 1500,   # handles burst telemetry
             "expiry": 10,       # messages expire quickly (real-time system)
         },

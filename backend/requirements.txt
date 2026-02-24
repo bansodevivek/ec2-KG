@@ -32,3 +32,6 @@ psycopg2-binary>=2.9
 
 # JWT decoding (used directly in middleware)
 PyJWT>=2.8
+
+# Environment variable management
+python-decouple>=3.8
