@@ -84,7 +84,7 @@ docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
 # ── Wait for Backend Health ──────────────────────────────────────────────────
 log "Waiting for backend to become healthy..."
 RETRIES=30
-until docker compose exec -T backend curl -sf http://localhost:8000/api/login/ > /dev/null 2>&1; do
+until docker compose exec -T backend curl -sf http://localhost:8000/admin/login/ > /dev/null 2>&1; do
     RETRIES=$((RETRIES - 1))
     if [ $RETRIES -le 0 ]; then
         warn "Backend health check timed out. Check logs: docker compose logs backend"
