@@ -106,6 +106,11 @@ log "Collecting static files..."
 docker compose exec -T backend python manage.py collectstatic --noinput
 success "Static files collected."
 
+# ── Restart Backend (Reloads WhiteNoise static manifest cache) ───────────────
+log "Restarting backend to load static manifest..."
+docker compose restart backend
+success "Backend restarted."
+
 # ── Create Cache Table (if not exists) ───────────────────────────────────────
 docker compose exec -T backend python manage.py createcachetable 2>/dev/null || true
 
