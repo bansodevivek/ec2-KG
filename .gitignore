@@ -69,6 +69,7 @@ dist-ssr/
 .env
 .env.*
 !.env.example
+!.env.template
 
 # ─── OS / Editor ─────────────────────────────────────────────────────────────
 .DS_Store
@@ -90,3 +91,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+backup_database.sql

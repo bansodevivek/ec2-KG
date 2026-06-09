@@ -135,7 +135,7 @@ class VehicleRawDataAccessView(APIView):
             limit = record_limits.get(role, 50)
             
             # Get latest records
-            raw_data = filtered_queryset.order_by('-timestamp')[:limit]
+            raw_data = filtered_queryset.order_by('-time')[:limit]
             
             # Filter fields based on role
             data_list = []

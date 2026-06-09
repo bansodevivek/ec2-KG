@@ -28,7 +28,7 @@ class ApiClient {
     reject: (reason: any) => void;
   }> = [];
 
-  constructor(baseURL: string = API_BASE_URL) {
+  constructor(baseURL: string = import.meta.env.VITE_API_BASE_URL || '/api') {
     this.axiosInstance = axios.create({
       baseURL,
       headers: {
@@ -160,13 +160,19 @@ class ApiClient {
     endpoint: string,
     options: AxiosRequestConfig = {}
   ): Promise<ApiResponse<T>> {
+    let cleanedEndpoint = endpoint;
+    const base = this.axiosInstance.defaults.baseURL || '';
+    if (base && cleanedEndpoint.startsWith(base)) {
+      cleanedEndpoint = cleanedEndpoint.slice(base.length);
+    }
+
     const method = (options.method ?? 'GET').toString().toUpperCase();
     const maxAttempts = method === 'GET' ? RETRY_COUNT + 1 : 1;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       try {
         const response: AxiosResponse<T> = await this.axiosInstance({
-          url: endpoint,
+          url: cleanedEndpoint,
           ...options,
         });
 

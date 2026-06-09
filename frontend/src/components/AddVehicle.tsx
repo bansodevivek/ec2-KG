@@ -962,7 +962,7 @@ const AddVehicle: React.FC<AddVehicleProps> = ({ onAdd, darkMode, userRole }) =>
                     Success!
                   </h4>
                   <p className={`text-sm mt-1 ${darkMode ? 'text-green-300' : 'text-green-600'}`}>
-                    Vehicle registered successfully with specs_template_id: {getTemplateId(formData.model, formData.variant)}
+                    Vehicle registered successfully
                   </p>
                 </div>
               </div>

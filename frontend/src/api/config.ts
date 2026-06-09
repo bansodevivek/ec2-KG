@@ -1,24 +1,26 @@
-// Use relative URL for development (proxy) or full URL for production
-//export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api');
-export const API_BASE_URL = 'http://203.16.202.48:8000/api';
+// API_BASE_URL is intentionally empty here because the Axios client in client.ts
+// already sets baseURL = VITE_API_BASE_URL (which is '/api').
+// Components that call apiClient.get(`${API_BASE_URL}/path/`) will correctly produce '/path/'.
+// DO NOT set this to '/api' again — that causes double-prefix: /api/api/...
+export const API_BASE_URL = '';
 
-// Alias for backward compatibility
+// Full endpoint paths (used only for direct axios calls outside apiClient, e.g. in auth.ts)
 export const API_ENDPOINTS = {
-  LOGIN: `${API_BASE_URL}/login/`,
-  LOGOUT: `${API_BASE_URL}/logout/`,
-  REFRESH_TOKEN: `${API_BASE_URL}/token/refresh/`,
-  VEHICLE_CONTROL: `${API_BASE_URL}/vehicle/control/`,
-  VEHICLE_IMMOBILIZER: `${API_BASE_URL}/vehicle/immobilizer/`,
-  VEHICLE_HORN: `${API_BASE_URL}/vehicle/horn/`,
-  MQTT_STATUS: `${API_BASE_URL}/mqtt/status/`,
-  VEHICLE_CREATE: `${API_BASE_URL}/vehicles/`,
-  VEHICLE_REGISTER_EOL: `${API_BASE_URL}/vehicles/register-eol/`,
-  USERS_CREATE: `${API_BASE_URL}/users/create/`,
-  USERS_UPDATE: `${API_BASE_URL}/users/update/`,
-  USERS_LIST: `${API_BASE_URL}/users/`,
-  FLEETS_MEMBERS: `${API_BASE_URL}/fleets/members/`,
-  RBAC_ASSIGN_VEHICLE: `${API_BASE_URL}/rbac/assign-vehicle/`,
-  FLEETS_ASSIGN_MEMBER: `${API_BASE_URL}/fleets/vehicles/assign-member/`,
+  LOGIN: `/api/login/`,
+  LOGOUT: `/api/logout/`,
+  REFRESH_TOKEN: `/api/token/refresh/`,
+  VEHICLE_CONTROL: `/api/vehicle/control/`,
+  VEHICLE_IMMOBILIZER: `/api/vehicle/immobilizer/`,
+  VEHICLE_HORN: `/api/vehicle/horn/`,
+  MQTT_STATUS: `/api/mqtt/status/`,
+  VEHICLE_CREATE: `/api/vehicles/`,
+  VEHICLE_REGISTER_EOL: `/api/vehicles/register-eol/`,
+  USERS_CREATE: `/api/users/create/`,
+  USERS_UPDATE: `/api/users/update/`,
+  USERS_LIST: `/api/users/`,
+  FLEETS_MEMBERS: `/api/fleets/members/`,
+  RBAC_ASSIGN_VEHICLE: `/api/rbac/assign-vehicle/`,
+  FLEETS_ASSIGN_MEMBER: `/api/fleets/vehicles/assign-member/`,
 };
 
 // ============================================================================
@@ -31,7 +33,7 @@ export const API_ENDPOINTS = {
  */
 export const insightsUrl = (vin: string, subPath?: string): string => {
   const encodedVin = encodeURIComponent(vin);
-  const base = `${API_BASE_URL}/insights/vehicle/${encodedVin}`;
+  const base = `/insights/vehicle/${encodedVin}`;
   return subPath ? `${base}/${subPath}/` : `${base}/`;
 };
 

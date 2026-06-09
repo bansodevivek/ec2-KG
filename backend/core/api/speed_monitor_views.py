@@ -21,7 +21,7 @@ class LiveSpeedView(APIView):
                 # Get latest speed for specific VIN
                 latest_data = VehicleRawData.objects.filter(
                     vin=vin
-                ).order_by('-timestamp').first()
+                ).order_by('-time').first()
                 
                 if not latest_data:
                     return Response({
@@ -34,7 +34,7 @@ class LiveSpeedView(APIView):
                     'success': True,
                     'vin': vin,
                     'speed': latest_data.vehicle_speed,
-                    'timestamp': latest_data.timestamp.isoformat(),
+                    'timestamp': latest_data.time.isoformat(),
                     'motor_rpm': latest_data.motor_rpm,
                     'soc': latest_data.soc_battery_pack
                 }, status=status.HTTP_200_OK)
@@ -46,14 +46,14 @@ class LiveSpeedView(APIView):
                 for vehicle in vehicles:
                     latest_data = VehicleRawData.objects.filter(
                         vin=vehicle.vin
-                    ).order_by('-timestamp').first()
+                    ).order_by('-time').first()
                     
                     if latest_data:
                         vehicles_speed.append({
                             'vin': vehicle.vin,
                             'model_name': vehicle.model_name,
                             'speed': latest_data.vehicle_speed,
-                            'timestamp': latest_data.timestamp.isoformat()
+                            'timestamp': latest_data.time.isoformat()
                         })
                 
                 return Response({
@@ -85,9 +85,9 @@ class HistoricalSpeedView(APIView):
             # Fetch historical data
             historical_data = VehicleRawData.objects.filter(
                 vin=vin,
-                timestamp__gte=cutoff_time
-            ).order_by('timestamp').values(
-                'timestamp',
+                time__gte=cutoff_time
+            ).order_by('time').values(
+                'time',
                 'vehicle_speed',
                 'motor_rpm',
                 'soc_battery_pack'
@@ -103,7 +103,7 @@ class HistoricalSpeedView(APIView):
             # Format data
             formatted_data = [
                 {
-                    'timestamp': data['timestamp'].isoformat(),
+                    'timestamp': data['time'].isoformat(),
                     'vehicle_speed': data['vehicle_speed'],
                     'motor_rpm': data['motor_rpm'],
                     'soc_battery_pack': data['soc_battery_pack']
@@ -140,7 +140,7 @@ class SpeedStatisticsView(APIView):
             # Calculate statistics
             stats = VehicleRawData.objects.filter(
                 vin=vin,
-                timestamp__gte=cutoff_time
+                time__gte=cutoff_time
             ).aggregate(
                 avg_speed=Avg('vehicle_speed'),
                 max_speed=Max('vehicle_speed'),
@@ -187,11 +187,11 @@ class AllVehiclesSpeedView(APIView):
                 # Get latest data
                 latest = VehicleRawData.objects.filter(
                     vin=vehicle.vin
-                ).order_by('-timestamp').first()
+                ).order_by('-time').first()
                 
                 if latest:
                     # Calculate time difference
-                    time_diff = datetime.now() - latest.timestamp.replace(tzinfo=None)
+                    time_diff = datetime.now() - latest.time.replace(tzinfo=None)
                     is_online = time_diff.total_seconds() < 300  # 5 minutes
                     
                     vehicles_data.append({
@@ -201,7 +201,7 @@ class AllVehiclesSpeedView(APIView):
                         'speed': latest.vehicle_speed,
                         'soc': latest.soc_battery_pack,
                         'odometer': latest.odometer,
-                        'timestamp': latest.timestamp.isoformat(),
+                        'timestamp': latest.time.isoformat(),
                         'is_online': is_online
                     })
             

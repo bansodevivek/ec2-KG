@@ -1,99 +1,140 @@
 #!/bin/bash
-# ============================================================
-#  HARDENED EC2 Deployment Script — Connected Auto Dashboard
-#  Architecture: Ubuntu 22.04 LTS (t3.micro Free Tier)
-# ============================================================
-set -e
+# ==============================================================================
+#  deploy.sh — Zero-Friction Production Deployment
+#  EV Telematics Platform | Kinetic Green
+#
+#  Usage:
+#    First deploy:  sudo ./deploy.sh --init
+#    Updates:       sudo ./deploy.sh
+#
+#  What it does:
+#    1. Pulls latest code from GitHub (main branch)
+#    2. Rebuilds only changed Docker images
+#    3. Runs database migrations inside the backend container
+#    4. Restarts the full stack with zero downtime
+#    5. Cleans up dangling images to save disk space
+# ==============================================================================
+set -euo pipefail
 
-REPO="https://github.com/bansodevivek/ec2-KG.git"
+# ── Configuration ────────────────────────────────────────────────────────────
 APP_DIR="/home/ubuntu/ec2-KG"
-USER="ubuntu"
+GIT_BRANCH="main"
+COMPOSE_FILE="docker-compose.yml"
 
-echo "==> 1. Securing Home Directory Permissions for Nginx..."
-chmod 755 /home/ubuntu
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'  # No Color
 
-echo "==> 2. Creating 2GB Swap File (Preventing RAM Crash)..."
+log() { echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} $1"; }
+success() { echo -e "${GREEN}[✓]${NC} $1"; }
+warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+error() { echo -e "${RED}[✗]${NC} $1" >&2; }
+
+# ── Preflight Checks ────────────────────────────────────────────────────────
+log "Starting deployment..."
+
+if [ ! -d "$APP_DIR" ]; then
+    error "Application directory $APP_DIR does not exist."
+    error "Clone the repository first: git clone <repo-url> $APP_DIR"
+    exit 1
+fi
+
+cd "$APP_DIR"
+
+if [ ! -f ".env" ]; then
+    if [ -f ".env.template" ]; then
+        warn ".env file not found. Creating from template..."
+        cp .env.template .env
+        error "DEPLOYMENT HALTED: Edit .env with your production values first!"
+        error "  nano $APP_DIR/.env"
+        error "Then re-run: sudo ./deploy.sh"
+        exit 1
+    else
+        error ".env file not found and no .env.template available."
+        exit 1
+    fi
+fi
+
+# ── Swap File (prevents OOM on t3.micro during npm build) ───────────────────
 if [ ! -f /swapfile ]; then
+    log "Creating 2GB swap file (prevents OOM during builds)..."
     fallocate -l 2G /swapfile
     chmod 600 /swapfile
     mkswap /swapfile
     swapon /swapfile
-    # Make it permanent across reboots
-    echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
-    echo "Swap file created."
+    echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab > /dev/null
+    success "Swap file created and activated."
 else
-    echo "Swap file already exists."
+    swapon /swapfile 2>/dev/null || true
 fi
 
-echo "==> 3. Installing System Dependencies (Ubuntu 22.04 Native)..."
-apt-get update -q
-apt-get install -y python3-venv python3-pip nginx nodejs npm git redis-server
+# ── Git Pull ─────────────────────────────────────────────────────────────────
+log "Pulling latest code from origin/${GIT_BRANCH}..."
+git fetch origin "${GIT_BRANCH}" --prune
+git reset --hard "origin/${GIT_BRANCH}"
+success "Code updated to $(git log --oneline -1)"
 
-echo "==> 4. Starting Redis..."
-systemctl enable redis-server
-systemctl start redis-server
+# ── Docker Compose Build & Deploy ────────────────────────────────────────────
+log "Building and deploying Docker stack..."
+docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
 
-echo "==> 5. Cloning / Updating Repository..."
-if [ -d "$APP_DIR" ]; then
-    cd "$APP_DIR" && git pull
-else
-    git clone "$REPO" "$APP_DIR"
-    chown -R $USER:$USER "$APP_DIR"
+# ── Wait for Backend Health ──────────────────────────────────────────────────
+log "Waiting for backend to become healthy..."
+RETRIES=30
+until docker compose exec -T backend curl -sf http://localhost:8000/api/login/ > /dev/null 2>&1; do
+    RETRIES=$((RETRIES - 1))
+    if [ $RETRIES -le 0 ]; then
+        warn "Backend health check timed out. Check logs: docker compose logs backend"
+        break
+    fi
+    sleep 2
+done
+if [ $RETRIES -gt 0 ]; then
+    success "Backend is healthy."
 fi
 
-echo "==> 6. Setting up Python Virtual Environment..."
-cd "$APP_DIR/backend"
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip -q
-.venv/bin/pip install -r requirements.txt -q
+# ── Database Migrations ─────────────────────────────────────────────────────
+log "Running database migrations..."
+docker compose exec -T backend python manage.py migrate --noinput
+success "Migrations applied."
 
-echo "==> 7. Checking .env file configuration..."
-if [ ! -f ".env" ]; then
-    echo "SECRET_KEY=django-insecure-replace-me-later" > .env
-    echo "DEBUG=False" >> .env
-    echo "ALLOWED_HOSTS=*" >> .env
-    echo "DB_NAME=ev_telematics" >> .env
-    echo "DB_USER=postgres" >> .env
-    echo "DB_PASSWORD=Password" >> .env
-    echo "DB_HOST=REPLACE_WITH_NGROK_URL" >> .env
-    echo "DB_PORT=REPLACE_WITH_NGROK_PORT" >> .env
-    echo "REDIS_URL=redis://127.0.0.1:6379/0" >> .env
-    echo "REDIS_CACHE_URL=redis://127.0.0.1:6379/1" >> .env
-    echo "CORS_ALLOW_ALL_ORIGINS=True" >> .env
+# ── Create Cache Table (if not exists) ───────────────────────────────────────
+docker compose exec -T backend python manage.py createcachetable 2>/dev/null || true
 
-    echo ""
-    echo "🚨 DEPLOYMENT HALTED TO PREVENT CRASH 🚨"
-    echo "I created a blank .env file for you, but it lacks your database credentials."
-    echo "Do this right now:"
-    echo "  1. Run: nano $APP_DIR/backend/.env"
-    echo "  2. Enter your friend's Ngrok DB_HOST and DB_PORT."
-    echo "  3. Save the file."
-    echo "  4. Run this deploy script one more time: sudo ./deploy/deploy.sh"
-    exit 1
+# ── Initialize (first deploy only) ──────────────────────────────────────────
+if [ "${1:-}" = "--init" ]; then
+    log "First deploy detected. Running initialization..."
+
+    # Restore database backup if it exists
+    if [ -f "$APP_DIR/backup_database.sql" ]; then
+        log "Restoring database from backup_database.sql..."
+        docker compose exec -T db psql -U postgres -d ev_telematics < "$APP_DIR/backup_database.sql" 2>/dev/null || true
+        success "Database restored."
+    fi
+
+    success "Initialization complete."
 fi
 
-echo "==> 8. Running Migrations & Collecting Static Files..."
-.venv/bin/python manage.py migrate --noinput
-.venv/bin/python manage.py collectstatic --noinput
+# ── Cleanup ──────────────────────────────────────────────────────────────────
+log "Cleaning up dangling images..."
+docker image prune -f
+docker builder prune -f --filter "until=24h" 2>/dev/null || true
+success "Cleanup complete."
 
-echo "==> 9. Building React Frontend (Using Swap RAM)..."
-cd "$APP_DIR/frontend"
-npm ci --silent
-npm run build
-
-echo "==> 10. Configuring Systemd Service (Uvicorn)..."
-cp "$APP_DIR/deploy/kg-backend.service" /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable kg-backend
-systemctl restart kg-backend
-
-echo "==> 11. Configuring Nginx Reverse Proxy..."
-cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/kg
-ln -sf /etc/nginx/sites-available/kg /etc/nginx/sites-enabled/kg
-rm -f /etc/nginx/sites-enabled/default
-nginx -t && systemctl restart nginx
-
+# ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
-echo "✅ DEPLOYMENT COMPLETE & SECURED."
-echo "   Visit your public EC2 IP in your browser now."
+echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
+echo -e "${GREEN}  ✅  DEPLOYMENT COMPLETE${NC}"
+echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
+echo ""
+echo -e "  ${CYAN}Frontend:${NC}  http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-ec2-ip')"
+echo -e "  ${CYAN}API:${NC}       http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-ec2-ip')/api/"
+echo -e "  ${CYAN}Admin:${NC}     http://$(curl -s ifconfig.me 2>/dev/null || echo 'your-ec2-ip')/admin/"
+echo ""
+echo -e "  ${YELLOW}Logs:${NC}      docker compose logs -f --tail=100"
+echo -e "  ${YELLOW}Status:${NC}    docker compose ps"
+echo -e "  ${YELLOW}Stop:${NC}      docker compose down"
 echo ""

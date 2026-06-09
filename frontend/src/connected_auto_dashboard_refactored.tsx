@@ -1,6 +1,6 @@
 // Main Dashboard Component - Refactored
 
-import { useState, lazy, Suspense, useEffect } from 'react';
+import { useState, lazy, Suspense, useEffect, Component, ReactNode } from 'react';
 import LoginPage from './components/LoginPage';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -38,6 +38,60 @@ import {
   FAULT_CODES,
   FAULT_CODE_ANALYSIS
 } from './constants';
+// ============================================================================
+// ERROR BOUNDARY — catches render-time errors in page components so the entire
+// app doesn't go blank (e.g. getTemplateId throwing when model is empty).
+// ============================================================================
+class PageErrorBoundary extends Component<
+  { children: ReactNode; onReset?: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: any) {
+    console.error('PageErrorBoundary caught:', error, info);
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+    this.props.onReset?.();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', height: '60vh', gap: '16px', padding: '32px'
+        }}>
+          <div style={{ fontSize: '48px' }}>⚠️</div>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>Something went wrong</h2>
+          <p style={{ margin: 0, color: '#6b7280', textAlign: 'center', maxWidth: '400px' }}>
+            {this.state.error?.message || 'An unexpected error occurred on this page.'}
+          </p>
+          <button
+            onClick={this.handleReset}
+            style={{
+              padding: '10px 24px', borderRadius: '10px', border: 'none',
+              background: '#2563eb', color: '#fff', cursor: 'pointer',
+              fontSize: '14px', fontWeight: 600
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const DEFAULT_MAP_CENTER: [number, number] = [19.0760, 72.8777];
 
@@ -308,6 +362,7 @@ const ConnectedAutoDashboard = () => {
           setSidebarOpen={setSidebarOpen}
         />
 
+        <PageErrorBoundary onReset={() => setCurrentPage('dashboard')}>
         <Suspense
           fallback={
             <div className="flex items-center justify-center h-full">
@@ -401,6 +456,7 @@ const ConnectedAutoDashboard = () => {
             )}
           </main>
         </Suspense>
+        </PageErrorBoundary>
       </div>
     </div>
   );

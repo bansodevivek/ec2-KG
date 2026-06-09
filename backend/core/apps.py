@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from django.apps import AppConfig
 
 
@@ -29,12 +30,11 @@ class CoreConfig(AppConfig):
         
         if 'runserver' not in argv and not any('uvicorn' in arg or 'gunicorn' in arg for arg in argv):
             return
-            
         try:
             from core.Services.vehicle_control import vehicle_control_service
-            print("✓ MQTT Vehicle Control Service initialized successfully")
+            print("[OK] MQTT Vehicle Control Service initialized successfully")
         except ImportError as e:
-            print(f"⚠ Warning: Could not import vehicle_control service: {e}")
+            print(f"[WARN] Warning: Could not import vehicle_control service: {e}")
             print("  Make sure paho-mqtt is installed: pip install paho-mqtt")
         except Exception as e:
-            print(f"✗ Failed to initialize MQTT service: {e}")
+            print(f"[ERROR] Failed to initialize MQTT service: {e}")

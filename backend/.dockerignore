@@ -1,0 +1,18 @@
+# Backend .dockerignore
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.env
+.env.*
+.git/
+.gitignore
+logs/
+*.sql
+celerybeat-schedule*
+test_*.py
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/

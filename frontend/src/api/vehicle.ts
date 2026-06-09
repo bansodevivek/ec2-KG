@@ -163,7 +163,7 @@ export const deleteVehicle = async (vin: string): Promise<{ success: boolean; me
   try {
     console.log(`🗑️ Deleting vehicle with VIN: ${vin}`);
 
-    const response = await apiClient.delete(`${API_BASE_URL}/vehicles/delete/${vin}/`);
+    const response = await apiClient.delete(`/vehicles/delete/${vin}/`);
 
     console.log('✅ Vehicle deleted successfully:', response.data);
 
