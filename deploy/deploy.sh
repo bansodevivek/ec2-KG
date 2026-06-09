@@ -101,6 +101,11 @@ log "Running database migrations..."
 docker compose exec -T backend python manage.py migrate --noinput
 success "Migrations applied."
 
+# ── Collect Static Files ────────────────────────────────────────────────────
+log "Collecting static files..."
+docker compose exec -T backend python manage.py collectstatic --noinput
+success "Static files collected."
+
 # ── Create Cache Table (if not exists) ───────────────────────────────────────
 docker compose exec -T backend python manage.py createcachetable 2>/dev/null || true
 
