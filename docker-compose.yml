@@ -77,6 +77,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: kg-celery-worker
+    healthcheck:
+      test: ["NONE"]
     restart: unless-stopped
     env_file:
       - .env
@@ -108,6 +110,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: kg-celery-beat
+    healthcheck:
+      test: ["NONE"]
     restart: unless-stopped
     env_file:
       - .env
@@ -137,6 +141,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: kg-mqtt-listener
+    healthcheck:
+      test: ["NONE"]
     restart: unless-stopped
     env_file:
       - .env

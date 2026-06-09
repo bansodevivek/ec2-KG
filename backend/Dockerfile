@@ -44,7 +44,7 @@ EXPOSE 8000
 
 # Health check — hits the login endpoint which is unauthenticated
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8000/api/login/ || exit 1
+    CMD curl -f http://localhost:8000/admin/login/ || exit 1
 
 # Gunicorn production server
 # - 3 workers (2*CPU + 1 for t3.micro's 2 vCPUs, capped for RAM)
