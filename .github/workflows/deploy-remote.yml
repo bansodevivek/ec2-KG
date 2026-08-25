@@ -24,21 +24,17 @@ jobs:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.REMOTE_SSH_KEY }}
-          script_stop: true
+          command_timeout: 15m
           script: |
             set -e
-
-            cd /home/ubuntu/ec2-KG
 
             echo "=== Deployment target ==="
             hostname
             pwd
 
-            echo "=== Updating repository ==="
-            git fetch origin main
-            git reset --hard origin/main
+            cd /home/ubuntu/ec2-KG
 
-            echo "=== Deploying application ==="
+            echo "=== Running deployment ==="
             ./deploy/deploy.sh
 
             echo "=== Container status ==="
