@@ -4,14 +4,14 @@
 #  EV Telematics Platform | Kinetic Green
 #
 #  Usage:
-#    First deploy:  sudo ./deploy.sh --init
-#    Updates:       sudo ./deploy.sh
+#    First deploy:  ./deploy.sh --init
+#    Updates:       ./deploy.sh
 #
 #  What it does:
 #    1. Pulls latest code from GitHub (main branch)
 #    2. Rebuilds only changed Docker images
 #    3. Runs database migrations inside the backend container
-#    4. Restarts the full stack with zero downtime
+#    4. Restarts the application stack
 #    5. Cleans up dangling images to save disk space
 # ==============================================================================
 set -euo pipefail
@@ -50,25 +50,12 @@ if [ ! -f ".env" ]; then
         cp .env.template .env
         error "DEPLOYMENT HALTED: Edit .env with your production values first!"
         error "  nano $APP_DIR/.env"
-        error "Then re-run: sudo ./deploy.sh"
+        error "Then re-run: ./deploy.sh"
         exit 1
     else
         error ".env file not found and no .env.template available."
         exit 1
     fi
-fi
-
-# ── Swap File (prevents OOM on t3.micro during npm build) ───────────────────
-if [ ! -f /swapfile ]; then
-    log "Creating 2GB swap file (prevents OOM during builds)..."
-    fallocate -l 2G /swapfile
-    chmod 600 /swapfile
-    mkswap /swapfile
-    swapon /swapfile
-    echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab > /dev/null
-    success "Swap file created and activated."
-else
-    swapon /swapfile 2>/dev/null || true
 fi
 
 # ── Git Pull ─────────────────────────────────────────────────────────────────
