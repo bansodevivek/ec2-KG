@@ -1,21 +1,17 @@
-﻿name: Deploy to Remote Ubuntu VM
+﻿name: Manual Remote Deployment
 
 on:
-  push:
-    branches:
-      - main
-
   workflow_dispatch:
 
 concurrency:
-  group: production-deployment
+  group: manual-production-deployment
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy application
+    name: Manual deployment
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Deploy to remote VM
@@ -28,13 +24,13 @@ jobs:
           script: |
             set -e
 
-            echo "=== Deployment target ==="
-            hostname
-            pwd
-
             cd /home/ubuntu/ec2-KG
 
-            echo "=== Running deployment ==="
+            export APP_VERSION="${{ github.sha }}"
+
+            echo "=== Deployment version ==="
+            echo "$APP_VERSION"
+
             ./deploy/deploy.sh
 
             echo "=== Container status ==="
@@ -42,5 +38,3 @@ jobs:
 
             echo "=== HTTP health check ==="
             curl -fsS http://localhost/ > /dev/null
-
-            echo "=== Deployment successful ==="

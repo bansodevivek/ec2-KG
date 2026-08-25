@@ -64,9 +64,21 @@ git fetch origin "${GIT_BRANCH}" --prune
 git reset --hard "origin/${GIT_BRANCH}"
 success "Code updated to $(git log --oneline -1)"
 
-# ── Docker Compose Build & Deploy ────────────────────────────────────────────
-log "Building and deploying Docker stack..."
-docker compose -f "$COMPOSE_FILE" up -d --build --remove-orphans
+# ── GHCR Pull & Deploy ────────────────────────────────────────────
+if [ -z "${APP_VERSION:-}" ]; then
+    error "APP_VERSION is required for GHCR deployment."
+    error "Example: APP_VERSION=<git-sha> ./deploy/deploy.sh"
+    exit 1
+fi
+
+log "Deploying image version: ${APP_VERSION}"
+
+log "Pulling application images from GHCR..."
+docker compose -f "$COMPOSE_FILE" pull backend celery-worker celery-beat mqtt-listener frontend
+success "Application images pulled."
+
+log "Starting Docker stack..."
+docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
 
 # ── Wait for Backend Health ──────────────────────────────────────────────────
 log "Waiting for backend to become healthy..."

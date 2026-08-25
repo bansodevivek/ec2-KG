@@ -1,4 +1,4 @@
-﻿name: Build and Publish Container Images
+﻿name: Build, Publish and Deploy
 
 on:
   push:
@@ -12,11 +12,10 @@ permissions:
   packages: write
 
 concurrency:
-  group: ghcr-publish
+  group: production-deployment
   cancel-in-progress: false
 
 env:
-  REGISTRY: ghcr.io
   IMAGE_NAMESPACE: ghcr.io/bansodevivek/ec2-kg
 
 jobs:
@@ -55,3 +54,38 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAMESPACE }}/frontend:${{ github.sha }}
             ${{ env.IMAGE_NAMESPACE }}/frontend:main
+
+  deploy:
+    name: Deploy GHCR images
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy exact image version to VM
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_SSH_KEY }}
+          command_timeout: 15m
+          script: |
+            set -e
+
+            cd /home/ubuntu/ec2-KG
+
+            export APP_VERSION="${{ github.sha }}"
+
+            echo "=== Deployment version ==="
+            echo "$APP_VERSION"
+
+            echo "=== Running GHCR deployment ==="
+            ./deploy/deploy.sh
+
+            echo "=== Container status ==="
+            docker compose ps
+
+            echo "=== HTTP health check ==="
+            curl -fsS http://localhost/ > /dev/null
+
+            echo "=== GHCR deployment successful ==="

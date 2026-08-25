@@ -47,9 +47,7 @@ services:
 
   # ── Django Backend (Gunicorn) ─────────────────────────────────────────────
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/bansodevivek/ec2-kg/backend:${APP_VERSION:?APP_VERSION must be set}
     container_name: kg-backend
     restart: unless-stopped
     env_file:
@@ -73,9 +71,7 @@ services:
 
   # ── Celery Worker (async task processing) ─────────────────────────────────
   celery-worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/bansodevivek/ec2-kg/backend:${APP_VERSION:?APP_VERSION must be set}
     container_name: kg-celery-worker
     healthcheck:
       test: ["NONE"]
@@ -106,9 +102,7 @@ services:
 
   # ── Celery Beat (periodic task scheduler) ─────────────────────────────────
   celery-beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/bansodevivek/ec2-kg/backend:${APP_VERSION:?APP_VERSION must be set}
     container_name: kg-celery-beat
     healthcheck:
       test: ["NONE"]
@@ -137,9 +131,7 @@ services:
 
   # ── MQTT Listener (ingestion service) ─────────────────────────────────────
   mqtt-listener:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/bansodevivek/ec2-kg/backend:${APP_VERSION:?APP_VERSION must be set}
     container_name: kg-mqtt-listener
     healthcheck:
       test: ["NONE"]
@@ -165,9 +157,7 @@ services:
 
   # ── Nginx + React Frontend (reverse proxy + SPA) ──────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/bansodevivek/ec2-kg/frontend:${APP_VERSION:?APP_VERSION must be set}
     container_name: kg-frontend
     restart: unless-stopped
     ports:
