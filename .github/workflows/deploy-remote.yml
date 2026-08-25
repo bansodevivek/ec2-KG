@@ -1,0 +1,50 @@
+﻿name: Deploy to Remote Ubuntu VM
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy application
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy to remote VM
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.REMOTE_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+
+            cd /home/ubuntu/ec2-KG
+
+            echo "=== Deployment target ==="
+            hostname
+            pwd
+
+            echo "=== Updating repository ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Deploying application ==="
+            ./deploy/deploy.sh
+
+            echo "=== Container status ==="
+            docker compose ps
+
+            echo "=== HTTP health check ==="
+            curl -fsS http://localhost/ > /dev/null
+
+            echo "=== Deployment successful ==="
