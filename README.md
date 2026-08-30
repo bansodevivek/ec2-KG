@@ -1,118 +1,144 @@
 # Connected Auto Dashboard
 
-A full-stack IoT vehicle telematics platform with a Django backend and React + Vite frontend.
+A full-stack EV telematics and IoT fleet management platform.
+
+## Overview
+
+The Connected Auto Dashboard provides real-time monitoring, fleet management, and remote control for electric vehicles. It ingests high-frequency telemetry data via MQTT, processes it through a Django/TimescaleDB backend, and serves live insights to a React dashboard using WebSockets and REST APIs.
+
+## Key Features
+
+- **Live Telemetry & Tracking**: Real-time vehicle location, BMS (Battery Management System), and MCU metrics.
+- **Remote Vehicle Control**: Lock/unlock immobilizer, sound horn, and execute MQTT commands.
+- **Fleet & Dealer Management**: Multi-tenant architecture for assigning vehicles to fleets and managing dealer inventory.
+- **Role-Based Access Control (RBAC)**: Fine-grained permissions for vehicle info, raw data access, and remote controls.
+- **Real-Time Dashboards**: Interactive visualizations using ECharts, Recharts, and Three.js for vehicle modeling.
+
+## Architecture
+
+```mermaid
+graph TD
+    Vehicle[Vehicle / IoT Device] -->|MQTT| Broker[MQTT Broker]
+    Broker -->|MQTT Listener| Backend[Django Backend]
+    Backend <--> DB[(TimescaleDB)]
+    Backend <--> Cache[(Redis)]
+    Cache <--> Celery[Celery Workers]
+    Backend -->|REST API & WebSockets| Nginx[Nginx Reverse Proxy]
+    Nginx --> Frontend[React Dashboard]
+```
+
+## Technology Stack
+
+| Layer | Technology | Purpose |
+| ----- | ---------- | ------- |
+| **Frontend** | React 18, Vite, TypeScript, Tailwind | SPA dashboard, 3D visualization, mapping (Leaflet) |
+| **Backend** | Django 4.2, DRF, Channels | REST API, WebSocket streaming (ASGI) |
+| **Database** | PostgreSQL + TimescaleDB | Time-series data storage and relational data |
+| **Cache/Queue**| Redis | Celery message broker and Channels layer |
+| **Messaging** | paho-mqtt | Subscribing and publishing to vehicle topics |
+| **Deployment**| Docker Compose, Nginx, GHCR | Containerized production orchestration |
 
 ## Project Structure
 
-```
+```text
 .
-├── backend/          # Django REST API + WebSocket (Channels/Daphne)
-└── frontend/         # React 18 + TypeScript + Vite dashboard
+├── backend/                  # Django REST API & async services
+│   ├── core/                 # App logic: APIs, WebSockets, MQTT, Celery tasks
+│   ├── DjangoProject/        # Django settings and WSGI/ASGI configuration
+│   ├── Dockerfile            # Backend container definition
+│   └── requirements.txt      # Python dependencies
+├── deploy/                   # Infrastructure & deployment scripts
+│   ├── deploy.sh             # Zero-downtime GHCR deployment script
+│   └── nginx.conf            # Reverse proxy and static file configuration
+└── frontend/                 # React frontend SPA
+    ├── src/                  # UI components, views, and state
+    ├── package.json          # Node dependencies
+    └── vite.config.ts        # Vite bundler configuration
 ```
 
----
+## Getting Started
 
-## Backend Setup
+### Prerequisites
 
-**Requirements:** Python 3.10+, Redis, PostgreSQL (or SQLite for dev)
+- **Backend**: Python 3.10+, PostgreSQL (TimescaleDB), Redis
+- **Frontend**: Node.js 18+
+- **Deployment**: Docker, Docker Compose
 
+### Configuration
+
+Copy the template environment file and provide your variables:
+
+```bash
+cp .env.template .env
+```
+Ensure `SECRET_KEY`, database credentials, and `MQTT_BROKER` settings are populated.
+
+### Local Development
+
+**1. Backend**
 ```bash
 cd backend
 python -m venv .venv
-
-# Windows
-.\.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
-
+source .venv/bin/activate  # On Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
 
-### Environment
-
-Copy `.env.example` to `.env` and fill in values:
-
-```bash
-cp .env.example .env
-```
-
-### Run Migrations
-
-```bash
+# Run migrations
 python manage.py migrate
 python manage.py createsuperuser
-```
 
-### Start Development Server
-
-```bash
+# Start server
 python -m uvicorn DjangoProject.asgi:application --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Start Celery Worker (in a separate terminal)
-
+**2. Background Services (Separate Terminals)**
 ```bash
-celery -A DjangoProject worker -l info -Q mqtt,default
+# Start Celery worker
+celery -A DjangoProject worker -l info -Q mqtt,batch,monitoring,celery
+
+# Start MQTT Ingestion Listener
+python manage.py mqtt_listener
 ```
 
----
-
-## Frontend Setup
-
-**Requirements:** Node.js 18+
-
+**3. Frontend**
 ```bash
 cd frontend
 npm install
-```
-
-### Environment
-
-Copy `.env.example` to `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Update `VITE_API_BASE_URL` to point to your backend (default: `http://localhost:8000`).
-
-### Start Dev Server
-
-```bash
 npm run dev
 ```
 
-### Build for Production
+### Docker Deployment
 
+The repository includes a production-ready `docker-compose.yml` that orchestrates Nginx, Django, Celery, TimescaleDB, and Redis.
+
+To initialize for the first time:
 ```bash
-npm run build
+APP_VERSION=latest ./deploy/deploy.sh --init
 ```
 
----
+To update from GitHub and redeploy:
+```bash
+APP_VERSION=latest ./deploy/deploy.sh
+```
 
-## Tech Stack
+## API
 
-| Layer      | Technology                                      |
-|------------|-------------------------------------------------|
-| Backend    | Django 4.2, DRF, Django Channels, Celery, Daphne |
-| Database   | PostgreSQL (TimescaleDB) / SQLite (dev)         |
-| Cache/Queue| Redis                                           |
-| Messaging  | MQTT (paho-mqtt)                                |
-| Frontend   | React 18, TypeScript, Vite, Tailwind CSS        |
-| Auth       | JWT (djangorestframework-simplejwt)             |
+The backend exposes comprehensive REST APIs prefixed with `/api/`. Major domains include:
 
----
+- **Auth**: JWT-based login (`/api/login/`) and token refresh.
+- **RBAC**: Role management (`/api/rbac/permissions/`).
+- **Fleet/Dealer**: Fleet tracking (`/api/fleets/`), dealer dashboards (`/api/dealers/dashboard/`).
+- **Live Data**: Active faults, BMS telemetry, and alerts (`/api/live/bms/`, `/api/live/faults/`).
+- **Control**: Vehicle remote control commands (`/api/vehicle/control/`).
 
-## API Endpoints
+## Background Processing & Real-Time Data
 
-Base URL: `http://localhost:8000/api/`
+- **Celery**: Manages asynchronous tasks (like bulk data processing or scheduled reports) using Redis as the message broker.
+- **MQTT**: A persistent Django management command (`mqtt_listener`) subscribes to the configured MQTT broker to ingest high-frequency IoT data.
+- **WebSockets**: Django Channels pushes live telemetry directly to the React frontend at `ws/vehicle/<vcu_id>/`.
 
-| Method | Endpoint           | Description           |
-|--------|--------------------|-----------------------|
-| POST   | `/api/token/`      | Obtain JWT tokens     |
-| POST   | `/api/token/refresh/` | Refresh access token |
-| GET    | `/api/vehicles/`   | List vehicles         |
-| GET    | `/api/users/`      | List users            |
+## Security & Reliability
 
-Full API documentation available at `/api/schema/` (if enabled).
+- **Authentication**: Stateless JWT token authentication.
+- **Network Isolation**: Database and Redis instances are bound to an internal Docker network (`kg-internal`) and inaccessible from the public internet.
+- **Reverse Proxy Headers**: Nginx enforces strict security headers (`X-Frame-Options`, `X-XSS-Protection`, etc.).
+- **Health Checks**: Built-in container health checks for auto-restarting unhealthy services.
